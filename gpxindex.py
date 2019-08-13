@@ -132,7 +132,7 @@ def proc_item_cb(ch, method, properties, body):
     body = dec(body)
     if body.get('EXIT'):
         return False
-    print("X:", body['filepath'])
+    print("-", body['filepath'])
     time.sleep(5)
     ch.basic_ack(delivery_tag=method.delivery_tag)
     return True
@@ -145,13 +145,12 @@ def proc_queue(opt):
 
     def cb(ch, method, properties, body, tag=tag):
         if not proc_item_cb(ch, method, properties, body):
-            print("Cancelling")
             ch.basic_cancel(tag)
 
     channel.basic_consume(
         queue=QUEUE, on_message_callback=cb, consumer_tag=tag
     )
-    print(tag)
+
     channel.start_consuming()
     # connection.process_data_events(time_limit=10)
     connection.close()
@@ -162,7 +161,7 @@ def spawn(opt):
     for i in range(opt.spawn):
         p.apply_async(proc_queue, (opt,))
     p.close()
-    p.join()  # doesn't work because
+    p.join()
 
 
 def main():
