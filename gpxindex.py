@@ -98,21 +98,40 @@ def load_queue(opt):
     connection.close()
 
 
-def show_item_cb(ch, method, properties, body):
-    print(dec(body).get('filepath'))
-
-
 def show_queue(opt):
     connection, channel = get_connection_channel()
-    channel.basic_consume(queue=QUEUE, on_message_callback=show_item_cb)
+    # https://www.rabbitmq.com/specification.html
+    # basic.reject - "No attempt is made to prevent redelivery to the same
+    # client."
+    put_back = []
+
+    def show_item_cb(ch, method, properties, body, put_back=put_back):
+        body = dec(body)
+        print(body.get('filepath'))
+        put_back.append(body)
+
+    channel.basic_consume(
+        queue=QUEUE, on_message_callback=show_item_cb, auto_ack=True
+    )
+    # channel.start_consuming()
     connection.process_data_events(time_limit=0)
+
+    connection, channel = get_connection_channel()
+    for task in put_back:
+        print(task)
+        channel.basic_publish(exchange='', routing_key=QUEUE, body=enc(task))
+
     connection.close()
+
+
+def clear_item_cb(ch, method, properties, body):
+    print(dec(body).get('filepath'))
 
 
 def clear_queue(opt):
     connection, channel = get_connection_channel()
     channel.basic_consume(
-        queue=QUEUE, on_message_callback=show_item_cb, auto_ack=True
+        queue=QUEUE, on_message_callback=clear_item_cb, auto_ack=True
     )
     connection.process_data_events(time_limit=0)
     if opt.exit:
